@@ -1,0 +1,67 @@
+# DEMS 三通道 Cycle 图配置
+# 所有数值都在这里改，脚本里不写死。
+
+figure:
+  dpi: 600
+  font: Arial
+  figsize: [3.0, 4.6]
+  pad_inches: 0.03
+
+layout:
+  left: 0.20          # 左边距（给 y 轴标题）
+  right: 0.985
+  top: 0.965
+  bottom: 0.10
+  hspace: 0.0         # 三层框零间距，连成一体
+  data_bottom: 0.05   # 数据最低点在单格高度中的位置
+  data_top: 0.55      # 数据最高点在单格高度中的位置
+  x_pad: 0.015        # 左右各留一点，避免曲线压住边框
+
+# 自上而下的三层：m/z 36 / 34 / 32
+channels:
+  - mz: 36
+    label: "m/z 36"
+    color: "#A6DA6A"
+    zoom: 10.0        # 本次未做 18O 标记，34/36 临时放粗一个数量级
+  - mz: 34
+    label: "m/z 34"
+    color: "#7FA9E6"
+    zoom: 10.0
+  - mz: 32
+    label: "m/z 32"
+    color: "#F49B9B"
+    zoom: 1.0
+
+scale_bar:
+  height: 0.113       # 工字比例尺长度（单格高度的比例），固定不变
+  text_top: 0.975     # 数字顶端，与右上角标签同高
+  text_size: 9.0
+  left: 0.025         # 左标记距左边框
+  right: 0.975        # 右标记距右边框
+  decimals: 1         # 数值保留一位小数
+
+peaks:
+  count: 5            # 默认取最后几个 m/z 32 峰
+  pad_seconds: 110    # 首峰前、末峰后各留多少秒
+  detrend_window: 41  # 滚动中位数点数（约 6 min）
+  min_gap_seconds: 150
+  min_prominence: 1.0e-11
+
+text:
+  ylabel: "Mass signal (a.u.)"
+  xlabel: "Cycle"
+
+output:
+  # 输出目录名：output/<tag>_0。留空则用输入文件夹名。
+  tag: "20261013-dems"
+
+# 数据集相关：按源文件名指定输出名与峰数。
+# 不写就用文件名推导：去掉 -File245 这类后缀，首字母大写。
+samples:
+  "ru-File244.csv":
+    name: Ru
+    peaks: 3
+  "3%-File245.csv":
+    name: "3%"
+  "4.5%-File247.csv":
+    name: "4.5%"

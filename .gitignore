@@ -1,0 +1,19 @@
+# Python 依赖（安装依赖.bat 在全局安装失败时会装到这里）
+py_deps/
+.venv/
+venv/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# matplotlib 字体缓存
+.mplcache/
+
+# 运行输出（表、图、数据对比都在这里重新生成）
+output/
+
+# 系统杂项
+Thumbs.db
+desktop.ini
+.DS_Store
