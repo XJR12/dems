@@ -10,8 +10,9 @@ __pycache__/
 # matplotlib 字体缓存
 .mplcache/
 
-# 运行输出（表、图、数据对比都在这里重新生成）
-output/
+# 运行输出：只放行仓库自带的示例 samples_0，其余跑出来的结果不入库
+outputs/*
+!outputs/samples_0/
 
 # 系统杂项
 Thumbs.db

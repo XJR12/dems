@@ -498,7 +498,7 @@ def write_tables(records, out_dir, cfg):
                 "峰心时刻/s": " ".join("%.0f" % c for c in rec["centers"]),
                 "窗口起/s": "%.0f" % rec["window"][0],
                 "窗口止/s": "%.0f" % rec["window"][1],
-                "图": os.path.join("图", rec["name"] + ".png"),
+                "图": rec["name"] + ".png",
                 "警告": "；".join(rec["warnings"]),
             }
             for mz in chans:

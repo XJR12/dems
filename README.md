@@ -83,7 +83,7 @@ CSV ──► 自动识别表头/列 ──► 滚动中位数去趋势 ──�
 
 细节见 [画图规则](#画图规则)。
 
-![RuO₂ 三通道 Cycle 图示例](outputs/20261013-dems_0/图/Ru.png)
+![RuO₂ 三通道 Cycle 图示例](outputs/samples_0/Ru.png)
 
 ### 5. 出表：逐文件、逐样品、汇总
 
@@ -143,14 +143,14 @@ numpy/matplotlib 的那个**；`安装依赖.bat` 全局 `pip install` 失败时
 ```powershell
 python dems_pipeline.py                              # 默认读 ./samples
 python dems_pipeline.py --input-dir samples
-python dems_pipeline.py --input-dir samples --tag 20261013-dems
+python dems_pipeline.py --input-dir "D:\数据±117" --count 3
 python dems_pipeline.py --input-dir samples --skip-plot
 python dems_pipeline.py --input-dir samples --window-ms 4750000:5600000  # 只取这段
 ```
 
 - `--input-dir`：原始 CSV 所在目录，默认本目录下的 `samples/`（没有则退回 `dems/`）。
-- `--tag`：输出子目录名前缀，默认读 `config.yaml` 的 `output.tag`
-  （本数据集为 `20261013-dems`），留空则用输入目录名；输出到 `output/<tag>_0/`。
+- `--tag`：覆盖输出目录名前缀；默认就是输入文件夹名。输出到
+  `outputs/<名字>_0/`，同名已存在就往后顺延 `_1`、`_2`…（编号从 0 开始）。
 - `--output-dir`：直接指定输出目录。
 - `--skip-plot`：只出表，不出图。
 - `--window T0:T1`：只取这段时间出图（秒），如 `--window 4750:5600`；
@@ -235,20 +235,22 @@ samples:
 ## 输出
 
 ```text
-output/<标签>_0/
+outputs/<输入文件夹名>_0/
 ├── dems_per_file.csv   每个文件一行：起始时刻、时长、峰数、取段、各通道极值、比例尺
-├── dems_best.csv       每个样品最终取段与比例尺，含图路径
+├── dems_best.csv       每个样品最终取段与比例尺，含图文件名
 ├── 数据对比.md          汇总表 + 判读说明
-└── 图/
-    ├── Ru.png
-    ├── 3%.png
-    └── 4.5%.png
+├── Ru.png              三通道 Cycle 图，直接放在这一层
+├── 3%.png
+└── 4.5%.png
 ```
 
+目录名固定是「输入文件夹名_编号」：编号从 0 开始，`_0` 已存在就自动用 `_1`，
+再跑就 `_2`，不会覆盖上一次的结果。图不再单独放子目录，直接和表放在一起。
+
 `dems_per_file.csv` 一文件一行、`dems_best.csv` 一样品一行、`数据对比.md` 汇总、
-`图/<样品>.png` 每样品一张——上面就是这个工具的输出标准。`output/` 是生成物
-（已写进 `.gitignore`）；仓库里的 `outputs/20261013-dems_0/` 是 `samples/` 这三份数据
-按同一标准出的现成输出，可以直接对照。
+`<样品>.png` 每样品一张——上面就是这个工具的输出标准。仓库里的
+`outputs/samples_0/` 是 `samples/` 这三份数据按同一标准出的现成输出；
+其余 `outputs/*` 是跑出来的结果，`.gitignore` 里只放行 `samples_0/`。
 
 ## 画图规则
 
@@ -297,10 +299,10 @@ output/<标签>_0/
 
 ## 命名
 
-- 输出图：`图/<样品>.png`，样品名默认由源文件名推导：去掉 `-File245` 这类后缀，
-  首字母大写（`ru-File244.csv` → `Ru.png`）。
-- 输出目录：`output/<tag>_0/`，`tag` 默认读 `config.yaml` 的 `output.tag`，
-  也可以用 `--tag` 临时改。
+- 输出图：`<样品>.png`，直接放在输出目录里；样品名默认由源文件名推导：去掉
+  `-File245` 这类后缀、首字母大写（`ru-File244.csv` → `Ru.png`）。
+- 输出目录：`outputs/<输入文件夹名>_<编号>/`，编号从 0 开始、已存在就顺延；
+  `--output-dir` 可以指定完整路径，`--tag` 只改前缀。
 
 ## 环境
 

@@ -5,15 +5,15 @@
 用法：
   python dems_pipeline.py                       # 默认读 ./samples
   python dems_pipeline.py --input-dir samples
-  python dems_pipeline.py --input-dir samples --tag 20261013-dems
+  python dems_pipeline.py --input-dir D:\数据\261117 --count 3
   python dems_pipeline.py --input-dir samples --skip-plot
 
-输出：
-  output/<标签>_0/
+输出（名字固定为「输入文件夹名_编号」，编号从 0 开始，已存在就往后顺延）：
+  outputs/<输入文件夹名>_0/
     dems_per_file.csv   每条记录
     dems_best.csv       每个样品最终取段与比例尺
     数据对比.md          汇总表
-    图/<样品>.png        三通道 Cycle 图
+    <样品>.png          三通道 Cycle 图（直接放在这一层）
 """
 
 import argparse
@@ -25,6 +25,7 @@ import yaml
 from dems_analysis import analyze_dir, write_tables
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_ROOT = os.path.join(SCRIPT_DIR, "outputs")
 # 默认输入目录：仓库自带的 samples/；没有则沿用旧布局的 dems/
 _DEFAULT_INPUT = "samples" if os.path.isdir(
     os.path.join(SCRIPT_DIR, "samples")) else "dems"
@@ -34,6 +35,17 @@ def load_config(path):
     with open(path, "r", encoding="utf-8") as fh:
         cfg = yaml.safe_load(fh) or {}
     return cfg
+
+
+def next_run_dir(tag):
+    """outputs/<输入文件夹名>_<编号>，编号从 0 开始，取第一个没被占用的。"""
+    os.makedirs(OUTPUT_ROOT, exist_ok=True)
+    index = 0
+    while True:
+        path = os.path.join(OUTPUT_ROOT, "%s_%d" % (tag, index))
+        if not os.path.exists(path):
+            return path
+        index += 1
 
 
 def _parse_window(text, scale):
@@ -112,7 +124,7 @@ def main(argv=None):
     tag = (args.tag
            or (cfg.get("output") or {}).get("tag")
            or os.path.basename(input_dir.rstrip("\\/")))
-    out_dir = args.output_dir or os.path.join(SCRIPT_DIR, "output", tag + "_0")
+    out_dir = args.output_dir or next_run_dir(tag)
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
 
@@ -139,8 +151,7 @@ def main(argv=None):
             print("缺少绘图依赖（matplotlib）。请先双击 安装依赖.bat，"
                   "或加 --skip-plot 只出表。")
             return 1
-        fig_dir = os.path.join(out_dir, "图")
-        os.makedirs(fig_dir, exist_ok=True)
+        fig_dir = out_dir
         for rec in records:
             path = os.path.join(fig_dir, rec["name"] + ".png")
             try:
