@@ -26,9 +26,9 @@ IGNORED_NAMES = ("ms", "", "index", "point", "scan", "no", "no.")
 
 
 def sample_name(path):
-    """由源文件名推导输出名：去掉 -File245 这类后缀，首字母大写。"""
+    """由源文件名推导输出名：去掉 -File245 / _File298 这类后缀，首字母大写。"""
     stem = os.path.splitext(os.path.basename(path))[0]
-    stem = re.sub(r"-file\d+$", "", stem, flags=re.IGNORECASE)
+    stem = re.sub(r"[-_]?file[-_]?\d+$", "", stem, flags=re.IGNORECASE)
     if not stem:
         stem = os.path.splitext(os.path.basename(path))[0]
     return stem[0].upper() + stem[1:]
@@ -172,9 +172,23 @@ def rolling_median(v, win):
     return out
 
 
+def detrend_points(time, cfg):
+    """去趋势窗口点数：配置写秒数时按实际采样间隔换算，写成点数就直接用。"""
+    peaks_cfg = cfg["peaks"]
+    if peaks_cfg.get("detrend_seconds") is not None:
+        dt = float(np.median(np.diff(time))) if len(time) > 1 else 0.0
+        win = int(round(float(peaks_cfg["detrend_seconds"]) / dt)) if dt > 0 else 41
+    else:
+        win = int(peaks_cfg["detrend_window"])
+    win = max(3, win)
+    if win % 2 == 0:
+        win += 1
+    return min(win, max(3, len(time) // 2 * 2 + 1))
+
+
 def find_peaks(time, v32, cfg):
     """滚动中位数去趋势后找 m/z 32 周期峰，返回峰索引。"""
-    win = int(cfg["peaks"]["detrend_window"])
+    win = detrend_points(time, cfg)
     gap = float(cfg["peaks"]["min_gap_seconds"])
     prom = float(cfg["peaks"]["min_prominence"])
 
@@ -239,6 +253,12 @@ def analyze_file(path, cfg):
         count = len(peaks)
 
     centers = time[peaks[-count:]]
+    if count >= 3:
+        gaps = np.diff(centers)
+        if gaps.min() > 0 and gaps.max() / gaps.min() > 1.5:
+            warnings.append(
+                "取用峰间距不均（%.0f–%.0f s），可能不是等周期循环，取段需人工确认"
+                % (gaps.min(), gaps.max()))
     pad = float(cfg["peaks"]["pad_seconds"])
     t0, t1 = centers[0] - pad, centers[-1] + pad
     if t0 < time[0]:

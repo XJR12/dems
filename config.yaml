@@ -43,7 +43,7 @@ scale_bar:
 peaks:
   count: 5            # 默认取最后几个 m/z 32 峰
   pad_seconds: 110    # 首峰前、末峰后各留多少秒
-  detrend_window: 41  # 滚动中位数点数（约 6 min）
+  detrend_seconds: 360  # 去趋势窗口（秒），按采样间隔折成点数；9 s 采样时约 41 点
   min_gap_seconds: 150
   min_prominence: 1.0e-11
 
