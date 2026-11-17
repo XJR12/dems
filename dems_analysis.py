@@ -213,7 +213,7 @@ def find_peaks(time, v32, cfg):
 
 
 def select_peaks(peaks, time, count, cfg):
-    """从识别到的峰里取 count 个：优先取末尾一段间距规整的。
+    """从识别到的峰里取 count 个：优先取末尾一段间距规整、且首末留白足够的。
 
     返回 (峰索引列表, 警告或 None)。
     """
@@ -224,21 +224,34 @@ def select_peaks(peaks, time, count, cfg):
         return peaks[-count:], None
 
     tol = float(cfg["peaks"].get("gap_tolerance", 1.3))
-    best = None
+    pad = float(cfg["peaks"].get("pad_seconds", 110))
+    regular = []
     for i in range(len(peaks) - count + 1):
         window = peaks[i:i + count]
         gaps = np.diff(time[window])
-        if gaps.min() <= 0:
-            continue
-        if gaps.max() / gaps.min() <= tol:
-            best = window  # 越靠后的窗口会覆盖前面的，最后留下最晚的一段
-    if best is not None:
-        if best[-1] != peaks[-1]:
-            skipped = len(peaks) - peaks.index(best[-1]) - 1
-            return best, ("末尾 %d 个峰间距不规整，已取最后一段间距一致的 %d 个峰"
-                          "（%.0f–%.0f s）" % (skipped, count,
-                                              time[best[0]], time[best[-1]]))
-        return best, None
+        if gaps.min() > 0 and gaps.max() / gaps.min() <= tol:
+            regular.append(window)
+
+    def skipped_hint(window):
+        skipped = len(peaks) - peaks.index(window[-1]) - 1
+        if skipped <= 0:
+            return None
+        return ("已跳过末尾 %d 个峰（末峰后留白不足或间距不一致），取 %.0f–%.0f s 的 %d 个峰"
+                % (skipped, time[window[0]], time[window[-1]], count))
+
+    # 先找留白够的（首峰前、末峰后都不被记录端点截断），取最靠后的一段
+    padded = [w for w in regular
+              if time[w[0]] - pad >= time[0] and time[w[-1]] + pad <= time[-1]]
+    if padded:
+        return padded[-1], skipped_hint(padded[-1])
+
+    if regular:
+        window = regular[-1]
+        tail = time[-1] - time[window[-1]]
+        head = time[window[0]] - time[0]
+        return window, ("留白不足（首峰前 %.0f s、末峰后 %.0f s，都要 %.0f s），"
+                        "已取最后一段规整的 %d 个峰（%.0f–%.0f s）"
+                        % (head, tail, pad, count, time[window[0]], time[window[-1]]))
 
     window = peaks[-count:]
     gaps = np.diff(time[window])
