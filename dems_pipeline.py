@@ -84,6 +84,10 @@ def main(argv=None):
                         help="取几个峰（覆盖 config.yaml 的 peaks.count），如 --count 3")
     parser.add_argument("--keep-suffix", action="store_true",
                         help="样品名完全用文件名，不剥掉 -FileNNN 之类的后缀")
+    parser.add_argument("--exclude", action="append", default=[], metavar="PATTERN",
+                        help="跳过文件名匹配这个通配符的 CSV，可写多次，如 --exclude \"*18O*\"")
+    parser.add_argument("--zoom", action="append", default=[], metavar="MZ:VALUE",
+                        help="覆盖某个通道的纵轴放大倍数，可写多次，如 --zoom 34:1 --zoom 36:1")
     parser.add_argument("--skip-plot", action="store_true", help="只出表，不出图")
     args = parser.parse_args(argv)
 
@@ -92,6 +96,13 @@ def main(argv=None):
         cfg.setdefault("peaks", {})["count"] = int(args.count)
     if args.keep_suffix:
         cfg.setdefault("naming", {})["strip_suffix"] = False
+    if args.exclude:
+        cfg["exclude"] = list(args.exclude)
+    for item in args.zoom:
+        mz_text, value = item.split(":", 1)
+        for channel in cfg["channels"]:
+            if int(channel["mz"]) == int(mz_text):
+                channel["zoom"] = float(value)
 
     window = None
     if args.window_ms:

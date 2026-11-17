@@ -13,6 +13,7 @@
 """
 
 import csv
+import fnmatch
 import math
 import os
 import re
@@ -395,10 +396,14 @@ def analyze_file(path, cfg):
 
 def analyze_dir(input_dir, cfg):
     files = []
+    excludes = list(cfg.get("exclude") or [])
     for root, _, names in os.walk(input_dir):
         for name in sorted(names):
-            if name.lower().endswith(".csv"):
-                files.append(os.path.join(root, name))
+            if not name.lower().endswith(".csv"):
+                continue
+            if any(fnmatch.fnmatch(name, pat) for pat in excludes):
+                continue
+            files.append(os.path.join(root, name))
 
     records, errors = [], []
     for path in files:

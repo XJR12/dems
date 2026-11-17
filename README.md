@@ -157,6 +157,9 @@ python dems_pipeline.py --input-dir samples --window-ms 4750000:5600000  # 只�
   给了就不用“取最后 N 个峰”的规则。
 - `--window-ms T0:T1`：同上，单位毫秒（Origin 时间轴），如 `--window-ms 4750000:5600000`。
 - `--count N`：取几个峰，覆盖 `peaks.count`，如 `--count 3`。
+- `--exclude PATTERN`：跳过文件名匹配的 CSV，可写多次，如 `--exclude "*¹⁸O*"`。
+- `--zoom MZ:VALUE`：覆盖某个通道的纵轴放大倍数，可写多次，如
+  `--zoom 34:1 --zoom 36:1`（标记实验里 34/36 不用再放大 10 倍时用）。
 
 ## 输入格式（最重要）
 
