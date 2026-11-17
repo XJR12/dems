@@ -39,11 +39,14 @@ scale_bar:
   left: 0.025         # 左标记距左边框
   right: 0.975        # 右标记距右边框
   decimals: 1         # 数值保留一位小数
+  shared: true        # 跨样品同比例尺：同通道统一成所有样品里最大的一段
 
 peaks:
-  count: 5            # 默认取最后几个 m/z 32 峰
+  count: 3            # 默认取最后几个 m/z 32 峰（--count 可临时覆盖）
   pad_seconds: 110    # 首峰前、末峰后各留多少秒
   detrend_seconds: 360  # 去趋势窗口（秒），按采样间隔折成点数；9 s 采样时约 41 点
+  require_regular: true  # 优先取末尾一段间距规整的峰
+  gap_tolerance: 1.3     # 峰间距 max/min 不超过这个值才算规整
   min_gap_seconds: 150
   min_prominence: 1.0e-11
 

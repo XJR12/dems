@@ -68,10 +68,14 @@ def main(argv=None):
                         help="指定取段（秒），如 4750:5600；给了就不用取末 N 峰的规则")
     parser.add_argument("--window-ms", default=None, metavar="T0:T1",
                         help="同上，单位毫秒（Origin 里的时间轴），如 4750000:5600000")
+    parser.add_argument("--count", type=int, default=None,
+                        help="取几个峰（覆盖 config.yaml 的 peaks.count），如 --count 3")
     parser.add_argument("--skip-plot", action="store_true", help="只出表，不出图")
     args = parser.parse_args(argv)
 
     cfg = load_config(os.path.abspath(args.config))
+    if args.count:
+        cfg.setdefault("peaks", {})["count"] = int(args.count)
 
     window = None
     if args.window_ms:

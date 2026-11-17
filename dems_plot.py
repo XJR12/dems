@@ -30,8 +30,12 @@ def setup_rc(cfg):
     plt.rcParams["axes.unicode_minus"] = False
 
 
-def gradient_fill(ax, x, y, color, ymin, ymax, x0, x1, data_top):
-    """曲线颜色 → 白色，自上而下渐变，填到该层底边。"""
+def gradient_fill(ax, x, y, color, ymin, ymax, x0, x1):
+    """曲线颜色 → 白色，自上而下渐变，填到该层底边。
+
+    渐变顶端跟着这条曲线自己的最高点走，所以多个样品共用同一段比例尺时，
+    曲线矮的样品也是峰尖处最白，不会出现上方一片空白渐变。
+    """
     poly = ax.fill_between(x, ymin, y, color="none", linewidth=0)
     path = poly.get_paths()[0]
     rgb = np.array(to_rgb(color))
@@ -39,7 +43,9 @@ def gradient_fill(ax, x, y, color, ymin, ymax, x0, x1, data_top):
     t = np.linspace(0.0, 1.0, n)[:, None, None]
     grad_rgb = (1.0 - t) + t * rgb.reshape(1, 1, 3)
     grad = np.concatenate([grad_rgb, np.ones((n, 1, 1))], axis=2)
-    y_full = ymin + data_top * (ymax - ymin)
+    y_full = float(np.nanmax(y))
+    if not np.isfinite(y_full) or y_full <= ymin:
+        y_full = ymin + 1e-6 * (ymax - ymin)
     im = ax.imshow(grad, extent=[x0, x1, ymin, y_full], aspect="auto",
                    origin="lower", interpolation="bilinear", zorder=1)
     im.set_clip_path(path, transform=ax.transData)
@@ -79,8 +85,7 @@ def draw_box(ax, x, y, channel, ylim, bar, cfg, show_numbers, nticks):
     x_pad = float(layout["x_pad"]) * (x.max() - x.min())
     x0, x1 = x.min() - x_pad, x.max() + x_pad
 
-    gradient_fill(ax, x, y, color, ymin, ymax, x0, x1,
-                  float(layout["data_top"]))
+    gradient_fill(ax, x, y, color, ymin, ymax, x0, x1)
 
     ax.plot(x, y, color=color, linewidth=1.3, solid_joinstyle="round",
             solid_capstyle="round", zorder=3)

@@ -208,6 +208,40 @@ def find_peaks(time, v32, cfg):
     return picked, resid
 
 
+def select_peaks(peaks, time, count, cfg):
+    """从识别到的峰里取 count 个：优先取末尾一段间距规整的。
+
+    返回 (峰索引列表, 警告或 None)。
+    """
+    peaks = list(peaks)
+    if len(peaks) <= count:
+        return peaks, None
+    if not bool(cfg["peaks"].get("require_regular", True)):
+        return peaks[-count:], None
+
+    tol = float(cfg["peaks"].get("gap_tolerance", 1.3))
+    best = None
+    for i in range(len(peaks) - count + 1):
+        window = peaks[i:i + count]
+        gaps = np.diff(time[window])
+        if gaps.min() <= 0:
+            continue
+        if gaps.max() / gaps.min() <= tol:
+            best = window  # 越靠后的窗口会覆盖前面的，最后留下最晚的一段
+    if best is not None:
+        if best[-1] != peaks[-1]:
+            skipped = len(peaks) - peaks.index(best[-1]) - 1
+            return best, ("末尾 %d 个峰间距不规整，已取最后一段间距一致的 %d 个峰"
+                          "（%.0f–%.0f s）" % (skipped, count,
+                                              time[best[0]], time[best[-1]]))
+        return best, None
+
+    window = peaks[-count:]
+    gaps = np.diff(time[window])
+    return window, ("没找到间距一致的 %d 个峰（末尾一段 %.0f–%.0f s），仍按最后 %d 个出图"
+                    % (count, gaps.min(), gaps.max(), count))
+
+
 def cycle_axis(time, centers):
     c0, c1 = centers[0], centers[-1]
     return 1.0 + (len(centers) - 1.0) * (time - c0) / (c1 - c0)
@@ -273,7 +307,11 @@ def analyze_file(path, cfg):
         if len(peaks) < count:
             warnings.append("只识别到 %d 个峰，按 %d 个出图" % (len(peaks), len(peaks)))
             count = len(peaks)
-        centers = time[peaks[-count:]]
+        chosen, hint = select_peaks(peaks, time, count, cfg)
+        if hint:
+            warnings.append(hint)
+        centers = time[chosen]
+        count = len(centers)
         pad = float(cfg["peaks"]["pad_seconds"])
         t0, t1 = centers[0] - pad, centers[-1] + pad
         if t0 < time[0]:
@@ -312,7 +350,7 @@ def analyze_file(path, cfg):
         mant, exp = bar_number(value, int(cfg["scale_bar"]["decimals"]))
 
         stats[mz] = {"min": lo, "max": hi, "range": hi - lo,
-                     "ylim": (ymin, ymax)}
+                     "total": total, "ylim": (ymin, ymax)}
         bars[mz] = {"mant": mant, "exp": exp,
                     "text": fmt_bar(mant, exp,
                                     int(cfg["scale_bar"]["decimals"]))}
@@ -354,7 +392,32 @@ def analyze_dir(input_dir, cfg):
     order = {name: i for i, name in enumerate((cfg.get("samples") or {}).keys())}
     records.sort(key=lambda r: (order.get(r["file"], 10 ** 6), r["file"]))
     _dedupe_names(records)
+    share_scales(records, cfg)
     return records, errors
+
+
+def share_scales(records, cfg):
+    """所有样品共用同一段比例尺：同通道取各样品里最大的一段。
+
+    这样三个样品的 m/z 32 比例尺数值相同、34 相同、36 相同，可以直接比峰高。
+    """
+    if not (cfg.get("scale_bar") or {}).get("shared"):
+        return
+    chans = [int(c["mz"]) for c in cfg["channels"]]
+    bottom = float(cfg["layout"]["data_bottom"])
+    height = float(cfg["scale_bar"]["height"])
+    decimals = int(cfg["scale_bar"]["decimals"])
+    shared = {mz: max(r["stats"][mz]["total"] for r in records) for mz in chans}
+    for rec in records:
+        for mz in chans:
+            st = rec["stats"][mz]
+            total = shared[mz]
+            ymin = st["min"] - bottom * total
+            st["total"] = total
+            st["ylim"] = (ymin, ymin + total)
+            mant, exp = bar_number(height * total, decimals)
+            rec["bars"][mz] = {"mant": mant, "exp": exp,
+                               "text": fmt_bar(mant, exp, decimals)}
 
 
 def _dedupe_names(records):
