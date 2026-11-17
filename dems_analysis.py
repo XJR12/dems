@@ -26,9 +26,9 @@ IGNORED_NAMES = ("ms", "", "index", "point", "scan", "no", "no.")
 
 
 def sample_name(path):
-    """由源文件名推导输出名：去掉 -File245 / _File298 这类后缀，首字母大写。"""
+    """由源文件名推导输出名：去掉 -File245 这类后缀，首字母大写。"""
     stem = os.path.splitext(os.path.basename(path))[0]
-    stem = re.sub(r"[-_]?file[-_]?\d+$", "", stem, flags=re.IGNORECASE)
+    stem = re.sub(r"-file\d+$", "", stem, flags=re.IGNORECASE)
     if not stem:
         stem = os.path.splitext(os.path.basename(path))[0]
     return stem[0].upper() + stem[1:]
@@ -241,32 +241,54 @@ def analyze_file(path, cfg):
     v32 = channels[32]
 
     peaks, _ = find_peaks(time, v32, cfg)
-    wanted = int(cfg["peaks"]["count"])
     cfg_sample = (cfg.get("samples") or {}).get(os.path.basename(path)) or {}
-    count = int(cfg_sample.get("peaks", wanted))
     warnings = []
 
     if not peaks:
         raise ValueError("没有识别到 m/z 32 周期峰")
-    if len(peaks) < count:
-        warnings.append("只识别到 %d 个峰，按 %d 个出图" % (len(peaks), len(peaks)))
-        count = len(peaks)
 
-    centers = time[peaks[-count:]]
+    # 指定区间优先：给了 window 就直接按它取段，不再用"取末 N 峰"的规则
+    window = cfg_sample.get("window") or cfg.get("window")
+    if window:
+        t0, t1 = float(window[0]), float(window[1])
+        if t0 > t1:
+            t0, t1 = t1, t0
+        if t0 >= time[-1] or t1 <= time[0]:
+            raise ValueError("指定区间 %.0f–%.0f s 不在记录范围 %.0f–%.0f s 内"
+                             % (t0, t1, time[0], time[-1]))
+        inside = [p for p in peaks if t0 <= time[p] <= t1]
+        if not inside:
+            raise ValueError("指定区间 %.0f–%.0f s 里没有认到 m/z 32 周期峰，"
+                             "换个区间或调低 peaks.min_prominence" % (t0, t1))
+        if t0 < time[0] or t1 > time[-1]:
+            warnings.append("指定区间超出记录范围，已截到 %.0f–%.0f s"
+                            % (max(t0, time[0]), min(t1, time[-1])))
+        t0, t1 = max(t0, time[0]), min(t1, time[-1])
+        centers = time[inside]
+        count = len(centers)
+        warnings.append("按指定区间取段：%.0f–%.0f s，含 %d 个峰" % (t0, t1, count))
+    else:
+        wanted = int(cfg["peaks"]["count"])
+        count = int(cfg_sample.get("peaks", wanted))
+        if len(peaks) < count:
+            warnings.append("只识别到 %d 个峰，按 %d 个出图" % (len(peaks), len(peaks)))
+            count = len(peaks)
+        centers = time[peaks[-count:]]
+        pad = float(cfg["peaks"]["pad_seconds"])
+        t0, t1 = centers[0] - pad, centers[-1] + pad
+        if t0 < time[0]:
+            warnings.append("首峰前留白不足，窗口从记录起点开始")
+            t0 = time[0]
+        if t1 > time[-1]:
+            warnings.append("末峰后留白不足，窗口到记录终点为止")
+            t1 = time[-1]
+
     if count >= 3:
         gaps = np.diff(centers)
         if gaps.min() > 0 and gaps.max() / gaps.min() > 1.5:
             warnings.append(
                 "取用峰间距不均（%.0f–%.0f s），可能不是等周期循环，取段需人工确认"
                 % (gaps.min(), gaps.max()))
-    pad = float(cfg["peaks"]["pad_seconds"])
-    t0, t1 = centers[0] - pad, centers[-1] + pad
-    if t0 < time[0]:
-        warnings.append("首峰前留白不足，窗口从记录起点开始")
-        t0 = time[0]
-    if t1 > time[-1]:
-        warnings.append("末峰后留白不足，窗口到记录终点为止")
-        t1 = time[-1]
 
     mask = (time >= t0) & (time <= t1)
     x = cycle_axis(time[mask], centers)

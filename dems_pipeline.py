@@ -36,6 +36,24 @@ def load_config(path):
     return cfg
 
 
+def _parse_window(text, scale):
+    """把 "4750:5600" 解析成秒；scale=0.001 时输入按毫秒理解。"""
+    cleaned = text.replace(",", "").replace("，", "")
+    for sep in (":", "-", "~", "至"):
+        if sep in cleaned:
+            a, b = cleaned.split(sep, 1)
+            break
+    else:
+        raise SystemExit("区间要写成 T0:T1，例如 4750:5600 或 4750000:5600000")
+    try:
+        t0, t1 = float(a) * scale, float(b) * scale
+    except ValueError:
+        raise SystemExit("区间里的数字看不懂：%s" % text)
+    if t0 > t1:
+        t0, t1 = t1, t0
+    return (t0, t1)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="DEMS 三通道 Cycle 图")
     parser.add_argument("--input-dir",
@@ -46,10 +64,22 @@ def main(argv=None):
     parser.add_argument("--tag", default=None,
                         help="输出子目录名前缀（默认用输入目录名）")
     parser.add_argument("--config", default=os.path.join(SCRIPT_DIR, "config.yaml"))
+    parser.add_argument("--window", default=None, metavar="T0:T1",
+                        help="指定取段（秒），如 4750:5600；给了就不用取末 N 峰的规则")
+    parser.add_argument("--window-ms", default=None, metavar="T0:T1",
+                        help="同上，单位毫秒（Origin 里的时间轴），如 4750000:5600000")
     parser.add_argument("--skip-plot", action="store_true", help="只出表，不出图")
     args = parser.parse_args(argv)
 
     cfg = load_config(os.path.abspath(args.config))
+
+    window = None
+    if args.window_ms:
+        window = _parse_window(args.window_ms, 0.001)
+    elif args.window:
+        window = _parse_window(args.window, 1.0)
+    if window:
+        cfg["window"] = window
 
     input_dir = os.path.abspath(args.input_dir)
     if not os.path.isdir(input_dir):

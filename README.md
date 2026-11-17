@@ -142,6 +142,7 @@ python dems_pipeline.py                              # 默认读 ./samples
 python dems_pipeline.py --input-dir samples
 python dems_pipeline.py --input-dir samples --tag 20261013-dems
 python dems_pipeline.py --input-dir samples --skip-plot
+python dems_pipeline.py --input-dir samples --window-ms 4750000:5600000  # 只取这段
 ```
 
 - `--input-dir`：原始 CSV 所在目录，默认本目录下的 `samples/`（没有则退回 `dems/`）。
@@ -149,6 +150,9 @@ python dems_pipeline.py --input-dir samples --skip-plot
   （本数据集为 `20261013-dems`），留空则用输入目录名；输出到 `output/<tag>_0/`。
 - `--output-dir`：直接指定输出目录。
 - `--skip-plot`：只出表，不出图。
+- `--window T0:T1`：只取这段时间出图（秒），如 `--window 4750:5600`；
+  给了就不用“取最后 N 个峰”的规则。
+- `--window-ms T0:T1`：同上，单位毫秒（Origin 时间轴），如 `--window-ms 4750000:5600000`。
 
 ## 输入格式（最重要）
 
@@ -179,7 +183,7 @@ Time,ms,Scan 1 : mass 32.00,Scan 2 : mass 34.00,Scan 3 : mass 36.00
 
 舍入版只有三位有效数字，34/36 这种弱通道的细节会被抹掉；做定量还是用仪器原始导出。
 
-文件名决定输出图的名字：`ru-File244.csv` → `Ru`（去掉 `-File245`、`_File298` 这类后缀，首字母大写）；
+文件名决定输出图的名字：`ru-File244.csv` → `Ru`（去掉 `-File245` 这类后缀、首字母大写）；
 `config.yaml` 的 `samples` 可以按文件名覆盖名字和取峰数。两个文件推出同一个名字时
 （比如 `ru.csv` 和 `ru-File244.csv` 放在一起），后一个自动加 `_2`，并在结果表里给警告。
 
@@ -191,6 +195,27 @@ samples/
 ├── 3%-File245.csv        3% Ce–RuO₂
 └── 4.5%-File247.csv      4.5% Ce–RuO₂
 ```
+
+## 指定取段时间
+
+默认规则是“取最后 N 个峰”。仪器出问题、某几圈不成形、或者想跟 Origin 里手挑的区间对齐时，
+直接给时间段就行：
+
+```powershell
+python dems_pipeline.py --input-dir D:\数据 --window-ms 4750000:5600000
+python dems_pipeline.py --input-dir D:\数据 --window 4750:5600
+```
+
+也可以写进 `config.yaml`，按文件给（单位秒）：
+
+```yaml
+samples:
+  "3%_File295.csv":
+    window: [4750, 5600]
+```
+
+给了区间之后：完全按它取段，不再加首末峰 ±110 s 的留白；区间内识别到几个峰，
+`Cycle` 就从 1 编到几；区间里一个峰都没有会报错，并提示调低 `peaks.min_prominence`。
 
 ## 常见报错
 
@@ -243,6 +268,8 @@ output/<标签>_0/
 5. 横轴 `Cycle` 是 m/z 32 峰的序号，按峰心线性换算，两端同斜率外推。
 6. 识别到的峰间距明显不均（最大/最小 > 1.5）时，结果表会给一条警告：
    这批数据可能不是等周期循环（比如恒电位下的缓慢累积），取段要人工确认。
+7. 想跳过这套自动取段，直接用 `--window` / `--window-ms` 或
+   `samples.<文件名>.window` 指定区间（见 [指定取段时间](#指定取段时间)）。
 
 ## 配置（config.yaml）
 
@@ -262,7 +289,7 @@ output/<标签>_0/
 
 ## 命名
 
-- 输出图：`图/<样品>.png`，样品名默认由源文件名推导：去掉 `-File245`、`_File298` 这类后缀，
+- 输出图：`图/<样品>.png`，样品名默认由源文件名推导：去掉 `-File245` 这类后缀，
   首字母大写（`ru-File244.csv` → `Ru.png`）。
 - 输出目录：`output/<tag>_0/`，`tag` 默认读 `config.yaml` 的 `output.tag`，
   也可以用 `--tag` 临时改。
