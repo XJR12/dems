@@ -70,12 +70,16 @@ def main(argv=None):
                         help="同上，单位毫秒（Origin 里的时间轴），如 4750000:5600000")
     parser.add_argument("--count", type=int, default=None,
                         help="取几个峰（覆盖 config.yaml 的 peaks.count），如 --count 3")
+    parser.add_argument("--keep-suffix", action="store_true",
+                        help="样品名完全用文件名，不剥掉 -FileNNN 之类的后缀")
     parser.add_argument("--skip-plot", action="store_true", help="只出表，不出图")
     args = parser.parse_args(argv)
 
     cfg = load_config(os.path.abspath(args.config))
     if args.count:
         cfg.setdefault("peaks", {})["count"] = int(args.count)
+    if args.keep_suffix:
+        cfg.setdefault("naming", {})["strip_suffix"] = False
 
     window = None
     if args.window_ms:

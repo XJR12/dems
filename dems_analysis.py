@@ -25,10 +25,14 @@ DELIMITERS = (",", ";", "\t")
 IGNORED_NAMES = ("ms", "", "index", "point", "scan", "no", "no.")
 
 
-def sample_name(path):
-    """由源文件名推导输出名：去掉 -File245 这类后缀，首字母大写。"""
+def sample_name(path, strip_suffix=True):
+    """由源文件名推导输出名，首字母大写。
+
+    strip_suffix=True 时去掉 -File245 这类后缀；False 就整段保留。
+    """
     stem = os.path.splitext(os.path.basename(path))[0]
-    stem = re.sub(r"-file\d+$", "", stem, flags=re.IGNORECASE)
+    if strip_suffix:
+        stem = re.sub(r"-file\d+$", "", stem, flags=re.IGNORECASE)
     if not stem:
         stem = os.path.splitext(os.path.basename(path))[0]
     return stem[0].upper() + stem[1:]
@@ -355,7 +359,8 @@ def analyze_file(path, cfg):
                     "text": fmt_bar(mant, exp,
                                     int(cfg["scale_bar"]["decimals"]))}
 
-    name = cfg_sample.get("name") or sample_name(path)
+    strip = bool((cfg.get("naming") or {}).get("strip_suffix", True))
+    name = cfg_sample.get("name") or sample_name(path, strip_suffix=strip)
     return {
         "path": path,
         "file": os.path.basename(path),
